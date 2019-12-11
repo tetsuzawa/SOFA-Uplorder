@@ -12,19 +12,25 @@ import (
 )
 
 func main() {
-	connect, _ := grpc.Dial("localhost:8080", grpc.WithInsecure())
+	connect, _ := grpc.Dial("localhost:8083", grpc.WithInsecure())
 
 	defer connect.Close()
 	uploadhalder := upload.NewUploadHandlerClient(connect)
 	stream, err := uploadhalder.Upload(context.Background())
+	if err != nil {
+		fmt.Printf("failed to make stream: %v", err)
+	}
 	err = Upload(stream)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("failed to upload: %v", err)
 	}
 }
 
 func Upload(stream upload.UploadHandler_UploadClient) error {
-	file, _ := os.Open("./sample.mp4")
+	file, err := os.Open("resource/wave.mp4")
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
 	defer file.Close()
 	buf := make([]byte, 1024)
 
@@ -34,13 +40,16 @@ func Upload(stream upload.UploadHandler_UploadClient) error {
 			break
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("io error: %w", err)
 		}
-		stream.Send(&upload.UploadRequest{VideoData: buf})
+		err = stream.Send(&upload.UploadRequest{VideoData: buf})
+		if err != nil {
+			return fmt.Errorf("stream send error: %w", err)
+		}
 	}
 	resp, err := stream.CloseAndRecv()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to CloseAndRecv: %w",err)
 	}
 	fmt.Println(resp.UploadStatus)
 	return nil

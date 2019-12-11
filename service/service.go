@@ -12,19 +12,19 @@ import (
 )
 
 func NewUploadServer(gserver *grpc.Server) {
-	uploadserver := &server{}
-	upload.RegisterUploadHandlerServer(gserver, uploadserver)
+	uploadservice := &uploadService{}
+	upload.RegisterUploadHandlerServer(gserver, uploadservice)
 	reflection.Register(gserver)
 }
 
-type server struct{}
+type uploadService struct{}
 
-func (s *server) Upload(stream upload.UploadHandler_UploadServer) error {
+func (s *uploadService) Upload(stream upload.UploadHandler_UploadServer) error {
 	err := os.MkdirAll("Sample", 0777)
 	if err != nil {
 		return err
 	}
-	file, err := os.Create(filepath.Join("Sample", "tmp.mp4"))
+	file, err := os.Create(filepath.Join("resource", "tmp.mp4"))
 	defer file.Close()
 	if err != nil {
 		return err
@@ -38,7 +38,11 @@ func (s *server) Upload(stream upload.UploadHandler_UploadServer) error {
 		if err != nil {
 			return err
 		}
-		file.Write(resp.VideoData)
+		_, err = file.Write(resp.VideoData)
+		if err != nil {
+			return err
+		}
+
 	}
 	err = stream.SendAndClose(&upload.UploadReply{UploadStatus: "OK"})
 	if err != nil {
